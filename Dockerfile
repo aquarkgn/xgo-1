@@ -4,7 +4,8 @@ ARG GO_VERSION="1.20.5"
 ARG OSXCROSS_VERSION="11.3"
 ARG XX_VERSION="1.2.1"
 ARG ALPINE_VERSION="3.17"
-ARG PLATFORMS="linux/386 linux/amd64 linux/arm64 linux/arm/v5 linux/arm/v6 linux/arm/v7 linux/mips linux/mipsle linux/mips64 linux/mips64le linux/ppc64le linux/riscv64 linux/s390x windows/386 windows/amd64"
+#ARG PLATFORMS="linux/386 linux/amd64 linux/arm64 linux/arm/v5 linux/arm/v6 linux/arm/v7 linux/mips linux/mipsle linux/mips64 linux/mips64le linux/ppc64le linux/riscv64 linux/s390x windows/386 windows/amd64"
+ARG PLATFORMS="linux/amd64 linux/arm64 windows/amd64"
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 FROM --platform=$BUILDPLATFORM golang:1.20-alpine${ALPINE_VERSION} AS base
@@ -86,6 +87,17 @@ RUN <<EOT
   set -e
   export GOXX_SKIP_APT_PORTS=1
   export DEBIAN_FRONTEND="noninteractive"
+  cp /etc/apt/sources.list /etc/apt/sources.list.bak
+  echo "deb http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+        deb-src http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+        deb http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse
+        deb-src http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse
+        deb http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse
+        deb-src http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse
+        deb http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse
+        deb-src http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse
+        deb http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse
+        deb-src http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse" > /etc/apt/sources.list
   apt-get update
   apt-get install --no-install-recommends -y git zip
   for p in $PLATFORMS; do
