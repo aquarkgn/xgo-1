@@ -23,19 +23,30 @@ var dockerDist = "ghcr.io/crazy-max/xgo"
 
 // Command line arguments to fine tune the compilation
 var (
-	goVersion     = flag.String("go", "latest", "Go release to use for cross compilation")
-	goProxy       = flag.String("goproxy", "", "Set a Global Proxy for Go Modules")
-	srcPackage    = flag.String("pkg", "", "Sub-package to build if not root import")
-	srcRemote     = flag.String("remote", "", "Version control remote repository to build")
-	srcBranch     = flag.String("branch", "", "Version control branch to build")
+	// Go版本
+	goVersion = flag.String("go-version", "latest", "Go release to use for cross compilation")
+	// Go代理地址
+	goProxy = flag.String("go-proxy", "", "Set a Global Proxy for Go Modules")
+	// git 子模块，未验证参数是否可用
+	srcPackage = flag.String("pkg", "", "Sub-package to build if not root import")
+	// 项目Git远程仓库
+	srcRemote = flag.String("remote", "", "Version control remote repository to build")
+	// 项目Git分支
+	srcBranch = flag.String("branch", "", "Version control branch to build")
+	// Go构建命令前缀
 	commandPrefix = flag.String("command-prefix", "", "Go Build Command Before Prefix")
-	buildPath     = flag.String("build-path", "", "Go Build Command Directory")
-	crossDeps     = flag.String("deps", "", "CGO dependencies (configure/make based archives)")
-	crossArgs     = flag.String("depsargs", "", "CGO dependency configure arguments")
-	targets       = flag.String("targets", "*/*", "Comma separated targets to build for")
-	dockerRepo    = flag.String("docker-repo", "", "Use custom docker repo instead of official distribution")
-	dockerImage   = flag.String("docker-image", "", "Use custom docker image instead of official distribution")
-	projectPath   = flag.String("project-path", "", "projectPath")
+	// Go构建命令目录
+	buildPath = flag.String("build-path", "", "Go Build Command Directory")
+	crossDeps = flag.String("deps", "", "CGO dependencies (configure/make based archives)")
+	crossArgs = flag.String("depsargs", "", "CGO dependency configure arguments")
+	// 交叉编译目标
+	targets     = flag.String("targets", "*/*", "Comma separated list of target os/arch to build: */* or linux/amd64,darwin/amd64")
+	dockerRepo  = flag.String("docker-repo", "", "Use custom docker repo instead of official distribution")
+	dockerImage = flag.String("docker-image", "", "Use custom docker image instead of official distribution")
+	// 项目根目录
+	projectPath = flag.String("project-path", "", "项目根目录")
+	// 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
+	cmdPath = flag.String("cmd-path", "", "项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx")
 )
 
 // ConfigFlags is a simple set of flags to define the environment and dependencies.
@@ -47,16 +58,21 @@ type ConfigFlags struct {
 	Branch       string   // Version control branch to build
 	Dependencies string   // CGO dependencies (configure/make based archives)
 	Arguments    string   // CGO dependency configure arguments
-	Targets      []string // Targets to build for
-	ProjectPath  string
-	BuildPath    string
+	Targets      []string // 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
+	ProjectPath  string   // 项目根目录
+	BuildPath    string   // Go构建命令目录
+	CmdPath      string   // 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
 }
 
 // Command line arguments to pass to go build
 var (
-	buildVerbose  = flag.Bool("v", false, "Print the names of packages as they are compiled")
-	buildSteps    = flag.Bool("x", false, "Print the command as executing the builds")
-	buildRace     = flag.Bool("race", false, "Enable data race detection (supported only on amd64)")
+	// Go编译时打印包的名称
+	buildVerbose = flag.Bool("v", false, "Print the names of packages as they are compiled")
+	// 命令在执行生成时打印命令
+	buildSteps = flag.Bool("x", false, "Print the command as executing the builds")
+	// 启用数据竞争检测（仅在amd64上支持）
+	buildRace = flag.Bool("race", false, "Enable data race detection (supported only on amd64)")
+
 	buildTags     = flag.String("tags", "", "List of build tags to consider satisfied during the build")
 	buildLdFlags  = flag.String("ldflags", "", "Arguments to pass on each go tool link invocation")
 	buildMode     = flag.String("buildmode", "default", "Indicates which kind of object file to build")
@@ -153,7 +169,8 @@ func main() {
 			}
 		}
 	}
-	// Assemble the cross compilation environment and build options
+
+	// 组装交叉编译环境和构建选项
 	config := &ConfigFlags{
 		Repository:   flag.Args()[0],
 		Package:      *srcPackage,
@@ -165,6 +182,7 @@ func main() {
 		Targets:      strings.Split(*targets, ","),
 		ProjectPath:  *projectPath,
 		BuildPath:    *buildPath,
+		CmdPath:      *cmdPath,
 	}
 	log.Printf("DBG: config: %+v", config)
 	flags := &BuildFlags{
@@ -178,6 +196,7 @@ func main() {
 		TrimPath: *buildTrimPath,
 	}
 	log.Printf("DBG: flags: %+v", flags)
+
 	var err error
 	if config.BuildPath != "" {
 		config.BuildPath, err = filepath.Abs(*buildPath)
@@ -185,7 +204,8 @@ func main() {
 			log.Fatalf("ERROR: Failed to resolve destination path (%s): %v.", *buildPath, err)
 		}
 	}
-	// Execute the cross compilation, either in a container or the current system
+
+	// 在容器或当前系统中执行交叉编译
 	if !xgoInXgo {
 		err = compile(image, config, flags)
 	} else {
@@ -197,6 +217,7 @@ func main() {
 }
 
 // Checks whether a docker installation can be found and is functional.
+// 检查是否可以找到docker安装并且功能正常。
 func checkDocker() error {
 	log.Println("INFO: Checking docker installation...")
 	if err := run(exec.Command("docker", "version")); err != nil {
