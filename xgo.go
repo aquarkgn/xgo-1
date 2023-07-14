@@ -112,10 +112,6 @@ func main() {
 		if err := checkDocker(); err != nil {
 			log.Fatalf("ERROR: Failed to check docker installation: %v.", err)
 		}
-		// Validate the command line arguments
-		if len(flag.Args()) != 1 {
-			log.Fatalf("Usage: %s [options] <go import path>", os.Args[0])
-		}
 		// Select the image to use, either official or custom
 		image = fmt.Sprintf("%s:%s", dockerDist, *goVersion)
 		if *dockerImage != "" {
