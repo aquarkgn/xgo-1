@@ -222,7 +222,7 @@ func pullDockerImage(image string) error {
 func compile(image string, config *ConfigFlags, flags *BuildFlags, folder string) error {
 	// If a local build was requested, find the import path and mount all GOPATH sources
 	locals, mounts, paths := []string{}, []string{}, []string{}
-	var usesModules bool
+	var usesModules bool = true
 	if strings.HasPrefix(config.Repository, string(filepath.Separator)) || strings.HasPrefix(config.Repository, ".") {
 		if fileExists(filepath.Join(config.Repository, "go.mod")) {
 			usesModules = true
