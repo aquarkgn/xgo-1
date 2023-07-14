@@ -24,25 +24,25 @@ var dockerDist = "ghcr.io/crazy-max/xgo"
 // Command line arguments to fine tune the compilation
 var (
 	// Go版本
-	goVersion = flag.String("go-version", "latest", "Go release to use for cross compilation")
+	goVersion = flag.String("go-version", "latest", "Go version (default: latest)")
 	// Go代理地址
-	goProxy = flag.String("go-proxy", "", "Set a Global Proxy for Go Modules")
+	goProxy = flag.String("go-proxy", "", "Go模块设置全局代理")
 	// git 子模块，未验证参数是否可用
-	srcPackage = flag.String("pkg", "", "Sub-package to build if not root import")
+	srcPackage = flag.String("pkg", "", "git 子模块，未验证参数是否可用:Sub-package to build if not root import")
 	// 项目Git远程仓库
-	srcRemote = flag.String("remote", "", "Version control remote repository to build")
+	srcRemote = flag.String("remote", "", "项目Git远程仓库")
 	// 项目Git分支
-	srcBranch = flag.String("branch", "", "Version control branch to build")
+	srcBranch = flag.String("branch", "", "项目Git分支")
 	// Go构建命令前缀
-	commandPrefix = flag.String("command-prefix", "", "Go Build Command Before Prefix")
+	commandPrefix = flag.String("command-prefix", "", "Go构建命令前缀")
 	// Go构建命令目录
-	buildPath = flag.String("build-path", "", "Go Build Command Directory")
+	buildPath = flag.String("build-path", "", "Go构建命令目录")
 	crossDeps = flag.String("deps", "", "CGO dependencies (configure/make based archives)")
 	crossArgs = flag.String("depsargs", "", "CGO dependency configure arguments")
 	// 交叉编译目标
-	targets     = flag.String("targets", "*/*", "Comma separated list of target os/arch to build: */* or linux/amd64,darwin/amd64")
-	dockerRepo  = flag.String("docker-repo", "", "Use custom docker repo instead of official distribution")
-	dockerImage = flag.String("docker-image", "", "Use custom docker image instead of official distribution")
+	targets     = flag.String("targets", "*/*", "要构建的目标 os/arch 的逗号分隔列表: */* or linux/amd64,darwin/amd64")
+	dockerRepo  = flag.String("docker-repo", "", "使用自定义docker repo而不是官方分发")
+	dockerImage = flag.String("docker-image", "", "使用自定义docker图像而不是官方分发")
 	// 项目根目录
 	projectPath = flag.String("project-path", "", "项目根目录")
 	// 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
