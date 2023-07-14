@@ -23,18 +23,19 @@ var dockerDist = "ghcr.io/crazy-max/xgo"
 
 // Command line arguments to fine tune the compilation
 var (
-	goVersion   = flag.String("go", "latest", "Go release to use for cross compilation")
-	goProxy     = flag.String("goproxy", "", "Set a Global Proxy for Go Modules")
-	srcPackage  = flag.String("pkg", "", "Sub-package to build if not root import")
-	srcRemote   = flag.String("remote", "", "Version control remote repository to build")
-	srcBranch   = flag.String("branch", "", "Version control branch to build")
-	outPrefix   = flag.String("out", "", "Prefix to use for output naming (empty = package name)")
-	outFolder   = flag.String("dest", "", "Destination folder to put binaries in (empty = current)")
-	crossDeps   = flag.String("deps", "", "CGO dependencies (configure/make based archives)")
-	crossArgs   = flag.String("depsargs", "", "CGO dependency configure arguments")
-	targets     = flag.String("targets", "*/*", "Comma separated targets to build for")
-	dockerRepo  = flag.String("docker-repo", "", "Use custom docker repo instead of official distribution")
-	dockerImage = flag.String("docker-image", "", "Use custom docker image instead of official distribution")
+	goVersion     = flag.String("go", "latest", "Go release to use for cross compilation")
+	goProxy       = flag.String("goproxy", "", "Set a Global Proxy for Go Modules")
+	srcPackage    = flag.String("pkg", "", "Sub-package to build if not root import")
+	srcRemote     = flag.String("remote", "", "Version control remote repository to build")
+	srcBranch     = flag.String("branch", "", "Version control branch to build")
+	commandPrefix = flag.String("command-prefix", "", "Go Build Command Before Prefix")
+	buildPath     = flag.String("build-path", "", "Go Build Command Directory")
+	crossDeps     = flag.String("deps", "", "CGO dependencies (configure/make based archives)")
+	crossArgs     = flag.String("depsargs", "", "CGO dependency configure arguments")
+	targets       = flag.String("targets", "*/*", "Comma separated targets to build for")
+	dockerRepo    = flag.String("docker-repo", "", "Use custom docker repo instead of official distribution")
+	dockerImage   = flag.String("docker-image", "", "Use custom docker image instead of official distribution")
+	projectPath   = flag.String("project-path", "", "projectPath")
 )
 
 // ConfigFlags is a simple set of flags to define the environment and dependencies.
@@ -47,6 +48,8 @@ type ConfigFlags struct {
 	Dependencies string   // CGO dependencies (configure/make based archives)
 	Arguments    string   // CGO dependency configure arguments
 	Targets      []string // Targets to build for
+	ProjectPath  string
+	BuildPath    string
 }
 
 // Command line arguments to pass to go build
@@ -156,10 +159,12 @@ func main() {
 		Package:      *srcPackage,
 		Remote:       *srcRemote,
 		Branch:       *srcBranch,
-		Prefix:       *outPrefix,
+		Prefix:       *commandPrefix,
 		Dependencies: *crossDeps,
 		Arguments:    *crossArgs,
 		Targets:      strings.Split(*targets, ","),
+		ProjectPath:  *projectPath,
+		BuildPath:    *buildPath,
 	}
 	log.Printf("DBG: config: %+v", config)
 	flags := &BuildFlags{
@@ -173,21 +178,18 @@ func main() {
 		TrimPath: *buildTrimPath,
 	}
 	log.Printf("DBG: flags: %+v", flags)
-	folder, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("ERROR: Failed to retrieve the working directory: %v.", err)
-	}
-	if *outFolder != "" {
-		folder, err = filepath.Abs(*outFolder)
+	var err error
+	if config.BuildPath != "" {
+		config.BuildPath, err = filepath.Abs(*buildPath)
 		if err != nil {
-			log.Fatalf("ERROR: Failed to resolve destination path (%s): %v.", *outFolder, err)
+			log.Fatalf("ERROR: Failed to resolve destination path (%s): %v.", *buildPath, err)
 		}
 	}
 	// Execute the cross compilation, either in a container or the current system
 	if !xgoInXgo {
-		err = compile(image, config, flags, folder)
+		err = compile(image, config, flags)
 	} else {
-		err = compileContained(config, flags, folder)
+		err = compileContained(config, flags)
 	}
 	if err != nil {
 		log.Fatalf("ERROR: Failed to cross compile package: %v.", err)
@@ -219,18 +221,18 @@ func pullDockerImage(image string) error {
 
 // compile cross builds a requested package according to the given build specs
 // using a specific docker cross compilation image.
-func compile(image string, config *ConfigFlags, flags *BuildFlags, folder string) error {
+func compile(image string, config *ConfigFlags, flags *BuildFlags) error {
 	// If a local build was requested, find the import path and mount all GOPATH sources
 	locals, mounts, paths := []string{}, []string{}, []string{}
 	var usesModules bool = true
-	if strings.HasPrefix(config.Repository, string(filepath.Separator)) || strings.HasPrefix(config.Repository, ".") {
-		if fileExists(filepath.Join(config.Repository, "go.mod")) {
+	if strings.HasPrefix(config.ProjectPath, string(filepath.Separator)) || strings.HasPrefix(config.ProjectPath, ".") {
+		if fileExists(filepath.Join(config.ProjectPath, "go.mod")) {
 			usesModules = true
 		}
 		if !usesModules {
 			// Resolve the repository import path from the file path
-			config.Repository = resolveImportPath(config.Repository)
-			if fileExists(filepath.Join(config.Repository, "go.mod")) {
+			config.ProjectPath = resolveImportPath(config.ProjectPath)
+			if fileExists(filepath.Join(config.ProjectPath, "go.mod")) {
 				usesModules = true
 			}
 		}
@@ -291,11 +293,11 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags, folder string
 		}
 	}
 	// Assemble and run the cross compilation command
-	log.Printf("INFO: Cross compiling %s package...", config.Repository)
+	log.Printf("INFO: Cross compiling project %s package %s ...", config.ProjectPath, config.Repository)
 
 	args := []string{
 		"run", "--rm",
-		"-v", folder + ":/build",
+		"-v", config.BuildPath + ":/build",
 		"-v", depsCache + ":/deps-cache:ro",
 		"-e", "REPO_REMOTE=" + config.Remote,
 		"-e", "REPO_BRANCH=" + config.Branch,
@@ -321,14 +323,14 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags, folder string
 		}
 
 		// Map this repository to the /source folder
-		absRepository, err := filepath.Abs(config.Repository)
+		absProjectPath, err := filepath.Abs(config.ProjectPath)
 		if err != nil {
 			log.Fatalf("ERROR: Failed to locate requested module repository: %v.", err)
 		}
-		args = append(args, []string{"-v", absRepository + ":/source"}...)
+		args = append(args, []string{"-v", absProjectPath + ":/source"}...)
 
 		// Check whether it has a vendor folder, and if so, use it
-		vendorPath := absRepository + "/vendor"
+		vendorPath := absProjectPath + "/vendor"
 		vendorfolder, err := os.Stat(vendorPath)
 		if !os.IsNotExist(err) && vendorfolder.Mode().IsDir() {
 			args = append(args, []string{"-e", "FLAG_MOD=vendor"}...)
@@ -351,7 +353,7 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags, folder string
 // specs using the current system opposed to running in a container. This is meant
 // to be used for cross compilation already from within an xgo image, allowing the
 // inheritance and bundling of the root xgo images.
-func compileContained(config *ConfigFlags, flags *BuildFlags, folder string) error {
+func compileContained(config *ConfigFlags, flags *BuildFlags) error {
 	// If a local build was requested, resolve the import path
 	local := strings.HasPrefix(config.Repository, string(filepath.Separator)) || strings.HasPrefix(config.Repository, ".")
 	if local {
