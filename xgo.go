@@ -376,13 +376,13 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags) error {
 // inheritance and bundling of the root xgo images.
 func compileContained(config *ConfigFlags, flags *BuildFlags) error {
 	// If a local build was requested, resolve the import path
-	local := strings.HasPrefix(config.Repository, string(filepath.Separator)) || strings.HasPrefix(config.Repository, ".")
+	local := strings.HasPrefix(config.ProjectPath, string(filepath.Separator)) || strings.HasPrefix(config.ProjectPath, ".")
 	if local {
 		// Resolve the repository import path from the file path
-		config.Repository = resolveImportPath(config.Repository)
+		config.ProjectPath = resolveImportPath(config.ProjectPath)
 
 		// Determine if this is a module-based repository
-		usesModules := fileExists(filepath.Join(config.Repository, "go.mod"))
+		usesModules := fileExists(filepath.Join(config.ProjectPath, "go.mod"))
 		if !usesModules {
 			os.Setenv("GO111MODULE", "off")
 			log.Println("INFO: Don't use go modules (go.mod not found)")
@@ -410,9 +410,9 @@ func compileContained(config *ConfigFlags, flags *BuildFlags) error {
 		env = append(env, "EXT_GOPATH=/non-existent-path-to-signal-local-build")
 	}
 	// Assemble and run the local cross compilation command
-	log.Printf("INFO: Cross compiling %s package...", config.Repository)
+	log.Printf("INFO: Cross compiling project %s package %s ...", config.ProjectPath, config.Repository)
 
-	cmd := exec.Command("xgo-build", config.Repository)
+	cmd := exec.Command("xgo-build", config.CmdPath)
 	cmd.Env = append(os.Environ(), env...)
 
 	return run(cmd)
