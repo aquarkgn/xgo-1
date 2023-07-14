@@ -46,7 +46,7 @@ var (
 	// 项目根目录
 	projectPath = flag.String("project-path", "", "项目根目录")
 	// 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
-	cmdPath = flag.String("cmd-path", "", "项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx")
+	cmdPath = flag.String("cmd-path", ".", "项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx")
 )
 
 // ConfigFlags is a simple set of flags to define the environment and dependencies.
@@ -172,7 +172,6 @@ func main() {
 
 	// 组装交叉编译环境和构建选项
 	config := &ConfigFlags{
-		Repository:   flag.Args()[0],
 		Package:      *srcPackage,
 		Remote:       *srcRemote,
 		Branch:       *srcBranch,
