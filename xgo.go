@@ -33,10 +33,7 @@ var (
 	srcRemote = flag.String("remote", "", "项目Git远程仓库")
 	// 项目Git分支
 	srcBranch = flag.String("branch", "", "项目Git分支")
-	// Go构建命令前缀
-	commandPrefix = flag.String("command-prefix", "", "Go构建命令前缀")
-	// Go构建命令目录
-	buildPath = flag.String("build-path", "", "Go构建命令目录")
+
 	crossDeps = flag.String("deps", "", "CGO dependencies (configure/make based archives)")
 	crossArgs = flag.String("depsargs", "", "CGO dependency configure arguments")
 	// 交叉编译目标
@@ -47,6 +44,10 @@ var (
 	projectPath = flag.String("project-path", "", "项目根目录")
 	// 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
 	cmdPath = flag.String("cmd-path", ".", "项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx")
+	// Go构建命令目录
+	binPath = flag.String("bin-path", "bin", "Go构建命令目录")
+	// Go构建命令前缀
+	commandPrefix = flag.String("command-prefix", "", "Go构建命令前缀")
 )
 
 // ConfigFlags is a simple set of flags to define the environment and dependencies.
@@ -60,7 +61,7 @@ type ConfigFlags struct {
 	Arguments    string   // CGO dependency configure arguments
 	Targets      []string // 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
 	ProjectPath  string   // 项目根目录
-	BuildPath    string   // Go构建命令目录
+	BinPath      string   // Go构建命令目录
 	CmdPath      string   // 项目命令所在相对目录，为空时默认为项目根目录 例如：cmd/xxx
 }
 
@@ -99,6 +100,36 @@ func main() {
 
 	// Retrieve the CLI flags and the execution environment
 	flag.Parse()
+
+	if *projectPath == "" {
+		*projectPath, _ = filepath.Abs("")
+	}
+
+	// 组装交叉编译环境和构建选项
+	config := &ConfigFlags{
+		Package:      *srcPackage,
+		Remote:       *srcRemote,
+		Branch:       *srcBranch,
+		Prefix:       *commandPrefix,
+		Dependencies: *crossDeps,
+		Arguments:    *crossArgs,
+		Targets:      strings.Split(*targets, ","),
+		ProjectPath:  *projectPath,
+		BinPath:      filepath.Join(*projectPath, *binPath),
+		CmdPath:      filepath.Join(*projectPath, *cmdPath),
+	}
+	log.Printf("DBG: config: %+v", config)
+	flags := &BuildFlags{
+		Verbose:  *buildVerbose,
+		Steps:    *buildSteps,
+		Race:     *buildRace,
+		Tags:     *buildTags,
+		LdFlags:  *buildLdFlags,
+		Mode:     *buildMode,
+		VCS:      *buildVCS,
+		TrimPath: *buildTrimPath,
+	}
+	log.Printf("DBG: flags: %+v", flags)
 
 	xgoInXgo := os.Getenv("XGO_IN_XGO") == "1"
 	if xgoInXgo {
@@ -166,37 +197,11 @@ func main() {
 		}
 	}
 
-	// 组装交叉编译环境和构建选项
-	config := &ConfigFlags{
-		Package:      *srcPackage,
-		Remote:       *srcRemote,
-		Branch:       *srcBranch,
-		Prefix:       *commandPrefix,
-		Dependencies: *crossDeps,
-		Arguments:    *crossArgs,
-		Targets:      strings.Split(*targets, ","),
-		ProjectPath:  *projectPath,
-		BuildPath:    *buildPath,
-		CmdPath:      *cmdPath,
-	}
-	log.Printf("DBG: config: %+v", config)
-	flags := &BuildFlags{
-		Verbose:  *buildVerbose,
-		Steps:    *buildSteps,
-		Race:     *buildRace,
-		Tags:     *buildTags,
-		LdFlags:  *buildLdFlags,
-		Mode:     *buildMode,
-		VCS:      *buildVCS,
-		TrimPath: *buildTrimPath,
-	}
-	log.Printf("DBG: flags: %+v", flags)
-
 	var err error
-	if config.BuildPath != "" {
-		config.BuildPath, err = filepath.Abs(*buildPath)
+	if config.BinPath != "" {
+		config.BinPath, err = filepath.Abs(*binPath)
 		if err != nil {
-			log.Fatalf("ERROR: Failed to resolve destination path (%s): %v.", *buildPath, err)
+			log.Fatalf("ERROR: Failed to resolve destination path (%s): %v.", *binPath, err)
 		}
 	}
 
@@ -313,7 +318,7 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags) error {
 
 	args := []string{
 		"run", "--rm",
-		"-v", config.BuildPath + ":/build",
+		"-v", config.BinPath + ":/build",
 		"-v", depsCache + ":/deps-cache:ro",
 		"-e", "REPO_REMOTE=" + config.Remote,
 		"-e", "REPO_BRANCH=" + config.Branch,
