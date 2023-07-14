@@ -52,7 +52,6 @@ var (
 
 // ConfigFlags is a simple set of flags to define the environment and dependencies.
 type ConfigFlags struct {
-	Repository   string   // Root import path to build
 	Package      string   // Sub-package to build if not root import
 	Prefix       string   // Prefix to use for output naming
 	Remote       string   // Version control remote repository to build
@@ -314,7 +313,7 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags) error {
 		}
 	}
 	// Assemble and run the cross compilation command
-	log.Printf("INFO: Cross compiling project %s package %s ...", config.ProjectPath, config.Repository)
+	log.Printf("INFO: Cross compiling project %s package %s ...", config.ProjectPath, config.CmdPath)
 
 	args := []string{
 		"run", "--rm",
@@ -365,7 +364,7 @@ func compile(image string, config *ConfigFlags, flags *BuildFlags) error {
 		args = append(args, []string{"-e", "EXT_GOPATH=" + strings.Join(paths, ":")}...)
 	}
 
-	args = append(args, []string{image, config.Repository}...)
+	args = append(args, []string{image, config.CmdPath}...)
 	log.Printf("INFO: Docker %s", strings.Join(args, " "))
 	return run(exec.Command("docker", args...))
 }
@@ -410,7 +409,7 @@ func compileContained(config *ConfigFlags, flags *BuildFlags) error {
 		env = append(env, "EXT_GOPATH=/non-existent-path-to-signal-local-build")
 	}
 	// Assemble and run the local cross compilation command
-	log.Printf("INFO: Cross compiling project %s package %s ...", config.ProjectPath, config.Repository)
+	log.Printf("INFO: Cross compiling project %s package %s ...", config.ProjectPath, config.CmdPath)
 
 	cmd := exec.Command("xgo-build", config.CmdPath)
 	cmd.Env = append(os.Environ(), env...)
