@@ -67,17 +67,17 @@ type ConfigFlags struct {
 // Command line arguments to pass to go build
 var (
 	// Go编译时打印包的名称
-	buildVerbose = flag.Bool("v", false, "Print the names of packages as they are compiled")
+	buildVerbose = flag.Bool("v", false, "Go编译时打印包的名称")
 	// 命令在执行生成时打印命令
-	buildSteps = flag.Bool("x", false, "Print the command as executing the builds")
+	buildSteps = flag.Bool("x", false, "命令在执行生成时打印命令")
 	// 启用数据竞争检测（仅在amd64上支持）
-	buildRace = flag.Bool("race", false, "Enable data race detection (supported only on amd64)")
+	buildRace = flag.Bool("race", false, "启用数据竞争检测（仅在amd64上支持）")
 
 	buildTags     = flag.String("tags", "", "List of build tags to consider satisfied during the build")
-	buildLdFlags  = flag.String("ldflags", "", "Arguments to pass on each go tool link invocation")
-	buildMode     = flag.String("buildmode", "default", "Indicates which kind of object file to build")
-	buildVCS      = flag.String("buildvcs", "", "Whether to stamp binaries with version control information")
-	buildTrimPath = flag.Bool("trimpath", false, "Remove all file system paths from the resulting executable")
+	buildLdFlags  = flag.String("build-ldflags", "", "每次go工具链接调用时传递的参数")
+	buildMode     = flag.String("build-mode", "default", "Indicates which kind of object file to build(default|archive|exe|pie)")
+	buildVCS      = flag.String("build-vcs", "", "Whether to stamp binaries with version control information (none|git|hg|svn|bzr)")
+	buildTrimPath = flag.Bool("build-trim-path", false, "从生成的可执行文件中删除所有文件系统路径")
 )
 
 // BuildFlags is a simple collection of flags to fine tune a build.
